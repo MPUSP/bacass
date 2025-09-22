@@ -18,16 +18,24 @@ process KMERFINDER {
     script:
     def prefix   = task.ext.prefix ?: "${meta.id}"
     def in_reads = reads[0] && reads[1] ? "${reads[0]} ${reads[1]}" : "${reads}"
-    def db_atg = "${kmerfinderdb_path}/${tax_group}.ATG"
-    def db_tax = file("${kmerfinderdb_path}/${tax_group}.name").exists() ? "${kmerfinderdb_path}/${tax_group}.name" : "${kmerfinderdb_path}/${tax_group}.tax"
+    def db_loc = "${kmerfinderdb_path}/${tax_group}"
     // WARNING: Ensure to update software version in this line if you modify the container/environment.
     def kmerfinder_version = "3.0.2"
     """
+    if [ -f "${db_loc}.tax" ]; then
+        db_tax_file="${db_loc}.tax"
+    elif [ -f "${db_loc}.name" ]; then
+        db_tax_file="${db_loc}.name"
+    else
+        echo "ERROR: No kmerfinder database found at '${db_loc}.tax' or '${db_loc}.name'"
+        exit 1
+    fi
+
     kmerfinder.py \\
         --infile $in_reads \\
         --output_folder . \\
-        --db_path $db_atg \\
-        -tax $db_tax \\
+        --db_path ${db_loc}.ATG \\
+        -tax \${db_tax_file} \\
         -x
 
     mv results.txt ${prefix}_results.txt
